@@ -1,9 +1,10 @@
 # Hyprland on VMware — and getting Omarchy to run in a VM
 
 Hyprland does not work in a VMware guest with 3D acceleration enabled. It either **aborts at
-startup**, or it starts to a **permanently empty desktop** — the wallpaper and bar are there,
-but no application window ever appears, because every GPU client is disconnected on its first
-frame.
+startup**, or it starts to a **blank desktop with nothing on it but a mouse cursor**. The
+cursor moves, keybinds do nothing you can see, and no window ever appears. On Omarchy even the
+bar and the wallpaper are missing, because those are GPU clients too and every GPU client is
+disconnected on its first frame. The cursor survives because the compositor draws it itself.
 
 Two distinct bugs. Both are diagnosed here, both have patches, and both are verified working
 on a real machine.
@@ -20,7 +21,9 @@ If you got here by searching, these are the strings that lead to this repo:
 - `zwp_linux_buffer_params_v1.failed` followed by the client being killed
 - `error 0: invalid ... id` / `wl_display@1.error` on a freshly created dmabuf buffer
 - `EGL: failed to initialize a platform display`
-- Hyprland black screen / empty desktop / "frozen" in VMware Workstation, Fusion, Player or ESXi
+- Hyprland black screen / blank desktop with only a cursor / "frozen" in VMware Workstation,
+  Fusion, Player or ESXi
+- no bar, no wallpaper, no windows — just a cursor that moves
 - Omarchy installs fine and then boots to nothing usable / Omarchy VMware black screen
 - "Omarchy in a VM doesn't work" — it does, with the patch here
 
@@ -40,7 +43,7 @@ bug 1 and the patches in this repo fix your machine.
 
 | | What you see | Cause | Patch |
 |---|---|---|---|
-| **1. dmabuf import** | Desktop starts, no window ever maps | `vmwgfx` returns a prime handle that `DRM_IOCTL_GEM_CLOSE` rejects with `EINVAL`; Hyprland treats the buffer as invalid and kills the client. The right call on this driver is `DRM_VMW_UNREF_SURFACE`. | `patches/*-vmwgfx-dmabuf.patch` |
+| **1. dmabuf import** | Blank desktop, cursor only, no window ever maps | `vmwgfx` returns a prime handle that `DRM_IOCTL_GEM_CLOSE` rejects with `EINVAL`; Hyprland treats the buffer as invalid and kills the client. The right call on this driver is `DRM_VMW_UNREF_SURFACE`. | `patches/*-vmwgfx-dmabuf.patch` |
 | **2. EGL init** | Hyprland aborts before the desktop appears | The gbm fallback path in `initEGL` is unreachable, so a platform-display failure is fatal instead of falling back. | `patches/*-egl-gbm-fallback.patch` |
 
 Most affected machines need **only patch 1**. Apply patch 2 only if Hyprland aborts at

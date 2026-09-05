@@ -356,7 +356,7 @@ Two separate bugs, two separate patches:
 
 - **`*-vmwgfx-dmabuf.patch`** — always needed. This is what makes GPU clients work.
 - **`*-egl-gbm-fallback.patch`** — needed only if Hyprland **aborts at startup** rather than
-  starting to an empty desktop.
+  starting to a blank desktop with only a cursor.
 
 One command decides it:
 
