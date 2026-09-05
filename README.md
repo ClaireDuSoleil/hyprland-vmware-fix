@@ -1,4 +1,4 @@
-# Hyprland on VMware
+# Hyprland/Omarchy on VMware
 
 Hyprland does not work in a VMware guest with 3D acceleration enabled. It either **aborts at
 startup**, or it starts to a **permanently empty desktop** — the wallpaper and bar are there,
