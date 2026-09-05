@@ -823,6 +823,11 @@ to be unpleasant. This is the "screen going bonkers" phase and it is by design.
 While the screensaver is **painting, the display is on** — DPMS is not involved yet. It
 dismisses on a **key press**; mouse movement alone may not do it.
 
+Turn it off with `omarchy-toggle-screensaver`, or let `tools/post-install.sh` do it. Note that
+it is a **toggle**, not an off switch: run it twice and the screensaver is back. To check the
+current state, `pgrep -x hypridle` — hypridle is what arms it, so no hypridle means no
+screensaver.
+
 ### 2. Idle DPMS off, with no way to wake it
 
 After the screensaver, the idle chain blanks the display (`fb=0`) and locks the session.
