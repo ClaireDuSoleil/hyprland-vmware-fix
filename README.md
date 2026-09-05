@@ -1,3 +1,5 @@
+Go here for a video demo: https://youtu.be/MFd4wF2Do7Q
+
 # Hyprland on VMware — and getting Omarchy to run in a VM
 
 Hyprland does not work in a VMware guest with 3D acceleration enabled. It either **aborts at
