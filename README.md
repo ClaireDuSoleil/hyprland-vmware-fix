@@ -1,4 +1,4 @@
-# Hyprland/Omarchy on VMware
+# Hyprland on VMware — and getting Omarchy to run in a VM
 
 Hyprland does not work in a VMware guest with 3D acceleration enabled. It either **aborts at
 startup**, or it starts to a **permanently empty desktop** — the wallpaper and bar are there,
@@ -8,13 +8,21 @@ frame.
 Two distinct bugs. Both are diagnosed here, both have patches, and both are verified working
 on a real machine.
 
+**This started as an attempt to run [Omarchy](https://omarchy.org) in VMware**, which is
+where most people will meet this: Omarchy is built on Hyprland, so a VMware install completes
+perfectly and then boots to a desktop where nothing can open. That is not an Omarchy bug and
+there is nothing wrong with your install — it is the Hyprland/`vmwgfx` bug below, and it hits
+any Hyprland-based distro in a VMware guest. Everything here works on plain Arch too; the
+repair guide is written against Omarchy because that is the machine it was proven on.
+
 If you got here by searching, these are the strings that lead to this repo:
 
 - `zwp_linux_buffer_params_v1.failed` followed by the client being killed
 - `error 0: invalid ... id` / `wl_display@1.error` on a freshly created dmabuf buffer
 - `EGL: failed to initialize a platform display`
 - Hyprland black screen / empty desktop / "frozen" in VMware Workstation, Fusion, Player or ESXi
-- Omarchy installs fine and then boots to nothing usable
+- Omarchy installs fine and then boots to nothing usable / Omarchy VMware black screen
+- "Omarchy in a VM doesn't work" — it does, with the patch here
 
 ## Is this you?
 
@@ -50,8 +58,15 @@ Patching is the only route.
 **[`REPAIR-OMARCHY-VM.md`](REPAIR-OMARCHY-VM.md)** is the procedure: rebuild the distro's
 `hyprland` package with the patch applied, install it, pin it against updates, and verify the
 fix took. It is written against **Omarchy** and Arch's `hyprland` PKGBUILD, and was executed
-end to end on a real VM — it is a transcript, not a sketch. On another Arch-based distro the
-steps are the same; on a non-Arch distro the patches still apply, only the packaging differs.
+end to end on a real Omarchy VM — it is a transcript, not a sketch. On another Arch-based
+distro the steps are the same; on a non-Arch distro the patches still apply, only the
+packaging differs.
+
+It also covers the Omarchy-specific things that waste an evening if you meet them cold: the
+`pacman -Syu` guard hook, the screensaver and DPMS behaviour that looks exactly like the bug
+you just fixed, `omarchy_gdk_scale` defaulting to 2, and why opening a terminal is *not* a
+valid test that the fix worked (Omarchy's foot is an SHM client and maps even on a broken
+system).
 
 Two things before you start:
 
@@ -149,7 +164,7 @@ Omarchy the default terminal (foot) is an SHM client and maps *even on a broken 
 |---|---|
 | Hyprland | 0.56.2 (Arch `extra`, `pkgrel` 3) |
 | aquamarine | 0.14.0 |
-| Distro | Omarchy (Arch-based) |
+| Distro | Omarchy (Arch-based); the patches are not Omarchy-specific |
 | Host | VMware Workstation, 3D acceleration **on** |
 | Diagnosed | 2026-09-02 |
 | Repair verified on a real VM | 2026-09-04 |
