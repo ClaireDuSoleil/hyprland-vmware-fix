@@ -50,16 +50,18 @@ ENABLE_DPMS_WAKE="${ENABLE_DPMS_WAKE:-yes}"
 # open-vm-tools: display autofit and host-guest clipboard for X11/XWayland clients.
 INSTALL_OPEN_VM_TOOLS="${INSTALL_OPEN_VM_TOOLS:-yes}"
 
-# Turn Omarchy's screensaver off. It is the animated "omarchy" wordmark that appears on idle,
-# and in a VM it flickers badly enough to be unpleasant.
+# Keep the VM awake: no lock, no screensaver, no display blanking. This is Omarchy's own
+# "stay awake" state, a file at ~/.local/state/omarchy/indicators/stay-awake. Undo it with
+# `omarchy-toggle-idle allow-idle`.
 #
-# The command is `omarchy-toggle-screensaver` -- a TOGGLE, not an off switch, so the script
-# checks whether the screensaver is actually armed before calling it. Running a toggle blind
-# would switch it back ON for anyone who had already disabled it, and this script is meant to
-# be re-runnable. If a future release renames it, the script also discovers candidates; set
-# SCREENSAVER_DISABLE_CMD to force a specific command.
+# This is the one that stops the LOCK. Turning the screensaver off does not: the screensaver
+# and the lock are separate parts of Omarchy's idle chain.
+STAY_AWAKE="${STAY_AWAKE:-yes}"
+
+# Also turn the screensaver itself off -- the animated "omarchy" wordmark, which on vmwgfx
+# flickers badly. Redundant while STAY_AWAKE=yes, but it means the screensaver stays off if
+# you later re-enable idling.
 DISABLE_SCREENSAVER="${DISABLE_SCREENSAVER:-yes}"
-SCREENSAVER_DISABLE_CMD="${SCREENSAVER_DISABLE_CMD:-auto}"
 
 HYPR_DIR="${HYPR_DIR:-$HOME/.config/hypr}"
 
@@ -209,49 +211,32 @@ else
     info "INSTALL_OPEN_VM_TOOLS=no -- skipped"
 fi
 
-# ------------------------------------------------------------------ 4. screensaver
+# ------------------------------------------------------------------ 4. idle chain
 
-step "Screensaver"
+step "Idle behaviour: lock, screensaver, blanking"
 
-# hypridle is what arms the screensaver: no hypridle, no idle trigger. Using it as the state
-# probe is what makes a toggle safe to call.
-screensaver_armed() { pgrep -x hypridle >/dev/null 2>&1; }
+# Neither of these is called blind. omarchy-toggle-idle takes an explicit state subcommand,
+# and omarchy-toggle-screensaver -- which is a pure toggle -- is guarded by the state query
+# Omarchy itself uses. That is what makes this script safe to run twice.
+
+if [[ $STAY_AWAKE != yes ]]; then
+    info "STAY_AWAKE=no -- leaving Omarchy's idle chain alone"
+elif ! command -v omarchy-toggle-idle >/dev/null 2>&1; then
+    warn "omarchy-toggle-idle not found -- skipping (is this Omarchy?)"
+else
+    info "this is what stops the screen locking on you, not the screensaver setting"
+    run omarchy-toggle-idle stay-awake
+    info "state: ~/.local/state/omarchy/indicators/stay-awake   undo: omarchy-toggle-idle allow-idle"
+fi
 
 if [[ $DISABLE_SCREENSAVER != yes ]]; then
     info "DISABLE_SCREENSAVER=no -- skipped"
-elif [[ $SCREENSAVER_DISABLE_CMD != auto ]]; then
-    run $SCREENSAVER_DISABLE_CMD
-elif ! screensaver_armed; then
-    ok "hypridle is not running -- the screensaver is already off"
+elif ! command -v omarchy-toggle-screensaver >/dev/null 2>&1; then
+    warn "omarchy-toggle-screensaver not found -- skipping"
+elif omarchy-toggle-enabled screensaver-off >/dev/null 2>&1; then
+    ok "screensaver already disabled"
 else
-    mapfile -t SS_CMDS < <(compgen -c 2>/dev/null | grep -E '^omarchy-.*(screensaver|idle)' | sort -u || true)
-    SS_OFF=""; SS_TOGGLE=""
-    # Confirmed name on Omarchy, 2026-09. The discovery below is only a rename safety net.
-    command -v omarchy-toggle-screensaver >/dev/null 2>&1 && SS_TOGGLE=omarchy-toggle-screensaver
-    for c in "${SS_CMDS[@]:-}"; do
-        [[ -z $c ]] && continue
-        case "$c" in
-            *disable*|*-off*) SS_OFF=$c ;;
-            *toggle*)         [[ -z $SS_TOGGLE ]] && SS_TOGGLE=$c ;;
-        esac || true
-    done
-
-    if [[ -n $SS_OFF ]]; then
-        info "using $SS_OFF"
-        run "$SS_OFF"
-    elif [[ -n $SS_TOGGLE ]]; then
-        info "hypridle is running, so the screensaver is on; toggling it off with $SS_TOGGLE"
-        run "$SS_TOGGLE"
-        if [[ $DRY_RUN == no ]]; then
-            sleep 1
-            screensaver_armed && warn "hypridle is still running -- toggle may have done something else" \
-                              || ok "screensaver disabled"
-        fi
-    else
-        warn "no omarchy screensaver/idle command found; not guessing"
-        (( ${#SS_CMDS[@]} )) && { info "candidates seen:"; printf '     %s\n' "${SS_CMDS[@]}"; }
-        info "turn it off from Omarchy's menu, or re-run with SCREENSAVER_DISABLE_CMD=<command>"
-    fi
+    run omarchy-toggle-screensaver
 fi
 
 # ------------------------------------------------------------------ 5. resolution + scale

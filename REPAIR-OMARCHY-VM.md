@@ -823,10 +823,23 @@ to be unpleasant. This is the "screen going bonkers" phase and it is by design.
 While the screensaver is **painting, the display is on** — DPMS is not involved yet. It
 dismisses on a **key press**; mouse movement alone may not do it.
 
-Turn it off with `omarchy-toggle-screensaver`, or let `tools/post-install.sh` do it. Note that
-it is a **toggle**, not an off switch: run it twice and the screensaver is back. To check the
-current state, `pgrep -x hypridle` — hypridle is what arms it, so no hypridle means no
-screensaver.
+`omarchy-toggle-screensaver` turns it off — but note two things. It is a **toggle**, not an
+off switch, so running it twice brings the screensaver back; query the state first with
+`omarchy-toggle-enabled screensaver-off`, which is what Omarchy's own scripts use.
+
+And it is **not enough on its own.** The screensaver and the lock are separate parts of
+Omarchy's idle chain, so turning the screensaver off still leaves you locked out a few minutes
+later. What you almost certainly want on a VM is:
+
+```bash
+omarchy-toggle-idle stay-awake      # no lock, no screensaver, no blanking
+omarchy-toggle-idle allow-idle      # put it back
+omarchy-toggle-idle status          # JSON: {"enabled":true,...} means idling is allowed
+```
+
+Those subcommands set state rather than flipping it, so they are safe to re-run. The state is
+a single file — `~/.local/state/omarchy/indicators/stay-awake`, present means "stay awake" —
+which is also the easiest thing to check from a script. `tools/post-install.sh` does both.
 
 ### 2. Idle DPMS off, with no way to wake it
 
