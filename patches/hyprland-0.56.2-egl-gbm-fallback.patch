@@ -1,0 +1,103 @@
+diff --git a/src/render/OpenGL.cpp b/src/render/OpenGL.cpp
+index baee1ad2..5ef60394 100644
+--- a/src/render/OpenGL.cpp
++++ b/src/render/OpenGL.cpp
+@@ -149,7 +149,7 @@ static ShaderFeatureFlags globalFeatures() {
+         0;
+ }
+ 
+-void CHyprOpenGLImpl::initEGL(bool gbm) {
++bool CHyprOpenGLImpl::initEGL(bool gbm) {
+     std::vector<EGLint> attrs;
+     if (m_exts.KHR_display_reference) {
+         attrs.push_back(EGL_TRACK_REFERENCES_KHR);
+@@ -159,14 +159,19 @@ void CHyprOpenGLImpl::initEGL(bool gbm) {
+     attrs.push_back(EGL_NONE);
+ 
+     m_eglDisplay = m_proc.eglGetPlatformDisplayEXT(gbm ? EGL_PLATFORM_GBM_KHR : EGL_PLATFORM_DEVICE_EXT, gbm ? m_gbmDevice : m_eglDevice, attrs.data());
+-    if (m_eglDisplay == EGL_NO_DISPLAY)
+-        RASSERT(false, "EGL: failed to create a platform display");
++    if (m_eglDisplay == EGL_NO_DISPLAY) {
++        Log::logger->log(Log::ERR, "EGL: failed to create a platform display ({})", gbm ? "gbm" : "device");
++        return false;
++    }
+ 
+     attrs.clear();
+ 
+     EGLint major, minor;
+-    if (eglInitialize(m_eglDisplay, &major, &minor) == EGL_FALSE)
+-        RASSERT(false, "EGL: failed to initialize a platform display");
++    if (eglInitialize(m_eglDisplay, &major, &minor) == EGL_FALSE) {
++        Log::logger->log(Log::ERR, "EGL: failed to initialize a platform display ({})", gbm ? "gbm" : "device");
++        m_eglDisplay = EGL_NO_DISPLAY;
++        return false;
++    }
+ 
+     const std::string EGLEXTENSIONS = eglQueryString(m_eglDisplay, EGL_EXTENSIONS);
+ 
+@@ -216,8 +221,13 @@ void CHyprOpenGLImpl::initEGL(bool gbm) {
+         m_eglContext        = eglCreateContext(m_eglDisplay, EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT, attrs.data());
+         m_eglContextVersion = EGL_CONTEXT_GLES_3_0;
+ 
+-        if (m_eglContext == EGL_NO_CONTEXT)
+-            RASSERT(false, "EGL: failed to create a context with either GLES3.2 or 3.0");
++        if (m_eglContext == EGL_NO_CONTEXT) {
++            Log::logger->log(Log::ERR, "EGL: failed to create a context with either GLES3.2 or 3.0 ({})", gbm ? "gbm" : "device");
++            eglTerminate(m_eglDisplay);
++            m_eglDisplay        = EGL_NO_DISPLAY;
++            m_eglContextVersion = EGL_CONTEXT_GLES_3_2;
++            return false;
++        }
+     }
+ 
+     if (m_exts.IMG_context_priority) {
+@@ -230,6 +240,8 @@ void CHyprOpenGLImpl::initEGL(bool gbm) {
+     }
+ 
+     eglMakeCurrent(m_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, m_eglContext);
++
++    return true;
+ }
+ 
+ static bool drmDeviceHasName(const drmDevice* device, const std::string& name) {
+@@ -333,16 +345,13 @@ CHyprOpenGLImpl::CHyprOpenGLImpl() : m_drmFD(g_pCompositor->m_drmRenderNode.fd >
+     if (EGLEXTENSIONS.contains("EXT_platform_device") || !m_proc.eglQueryDevicesEXT || !m_proc.eglQueryDeviceStringEXT) {
+         m_eglDevice = eglDeviceFromDRMFD(m_drmFD);
+ 
+-        if (m_eglDevice != EGL_NO_DEVICE_EXT) {
+-            success = true;
+-            initEGL(false);
+-        }
++        if (m_eglDevice != EGL_NO_DEVICE_EXT)
++            success = initEGL(false);
+     }
+ 
+     if (!success) {
+         Log::logger->log(Log::WARN, "EGL: EXT_platform_device or EGL_EXT_device_query not supported, using gbm");
+         if (EGLEXTENSIONS.contains("KHR_platform_gbm")) {
+-            success = true;
+             m_gbmFD = CFileDescriptor{openRenderNode(m_drmFD)};
+             if (!m_gbmFD.isValid())
+                 RASSERT(false, "Couldn't open a gbm fd");
+@@ -351,7 +360,7 @@ CHyprOpenGLImpl::CHyprOpenGLImpl() : m_drmFD(g_pCompositor->m_drmRenderNode.fd >
+             if (!m_gbmDevice)
+                 RASSERT(false, "Couldn't open a gbm device");
+ 
+-            initEGL(true);
++            success = initEGL(true);
+         }
+     }
+ 
+diff --git a/src/render/OpenGL.hpp b/src/render/OpenGL.hpp
+index fc0e3456..e428c4ee 100644
+--- a/src/render/OpenGL.hpp
++++ b/src/render/OpenGL.hpp
+@@ -326,7 +326,7 @@ namespace Render::GL {
+         GLuint                           m_currentProgram;
+ 
+         void                             initDRMFormats();
+-        void                             initEGL(bool gbm);
++        bool                             initEGL(bool gbm);
+         EGLDeviceEXT                     eglDeviceFromDRMFD(int drmFD);
+ 
+         // for the final shader

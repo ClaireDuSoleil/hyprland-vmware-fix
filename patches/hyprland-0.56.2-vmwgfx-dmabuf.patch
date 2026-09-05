@@ -1,0 +1,52 @@
+diff --git a/src/protocols/LinuxDMABUF.cpp b/src/protocols/LinuxDMABUF.cpp
+index 897c98dc..74eeba2c 100644
+--- a/src/protocols/LinuxDMABUF.cpp
++++ b/src/protocols/LinuxDMABUF.cpp
+@@ -1,5 +1,6 @@
+ #include "LinuxDMABUF.hpp"
+ #include <algorithm>
++#include <cstring>
+ #include <set>
+ #include <tuple>
+ #include "../helpers/MiscFunctions.hpp"
+@@ -18,6 +19,30 @@
+ 
+ using namespace Hyprutils::OS;
+ 
++// vmwgfx returns TTM-backed surface handles from drmPrimeFDToHandle, which
++// DRM_IOCTL_GEM_CLOSE cannot release. Fall back to the vmwgfx surface unref.
++#define DRM_VMW_UNREF_SURFACE 10
++
++struct drmVmwSurfaceArg {
++    int32_t  sid;
++    uint32_t handleType;
++};
++
++static int closeVmwGFXHandle(int fd, uint32_t handle) {
++    bool          isVmwgfx;
++    drmVersionPtr version;
++
++    version  = drmGetVersion(fd);
++    isVmwgfx = version && version->name && strncmp(version->name, "vmwgfx", version->name_len) == 0;
++    if (version)
++        drmFreeVersion(version);
++    if (!isVmwgfx)
++        return -1;
++
++    struct drmVmwSurfaceArg arg = {sc<int32_t>(handle), 0};
++    return drmCommandWrite(fd, DRM_VMW_UNREF_SURFACE, &arg, sizeof(arg));
++}
++
+ static std::optional<dev_t> devIDFromFD(int fd) {
+     struct stat stat;
+     if (fstat(fd, &stat) != 0)
+@@ -272,7 +297,8 @@ bool CLinuxDMABUFParamsResource::commence() {
+             return false;
+         }
+ 
+-        if (drmCloseBufferHandle(PROTO::linuxDma->m_mainDeviceFD.get(), handle)) {
++        if (drmCloseBufferHandle(PROTO::linuxDma->m_mainDeviceFD.get(), handle) != 0 &&
++            closeVmwGFXHandle(PROTO::linuxDma->m_mainDeviceFD.get(), handle) != 0) {
+             LOGM(Log::ERR, "Failed to close dmabuf handle");
+             return false;
+         }
