@@ -38,6 +38,31 @@ no clipboard on a TTY, awkward key handling, and a compositor failure can take t
 with it. Every step below assumes you are typing into an SSH session from your host, not
 squinting at the VMware window.
 
+### 0.0. Escape the broken desktop: `Ctrl+Alt+F3`
+
+If you are staring at a blank desktop with only a cursor, you are not stuck. The graphical
+session is one virtual terminal among several, and the others are fine — the compositor is
+broken, the machine is not.
+
+**Press `Ctrl+Alt+F3`.** You get a plain text login prompt. Log in with the same username and
+password you set during install, and run everything below from there.
+
+- Any of `F2` through `F6` works; `F3` is a safe pick because some setups keep a getty on
+  `F2`. `Ctrl+Alt+F1` goes *back* to the graphical session — which is still broken, so it will
+  look like nothing happened. Use `Ctrl+Alt+F3` to come back to the text console.
+- **Click inside the VM window first**, so the guest has keyboard focus. VMware does not
+  forward keystrokes to an unfocused window, and the identical symptom — keys doing nothing —
+  is easy to blame on the bug you are chasing. See "VMware does not deliver input to an
+  unfocused console" in Step 4.
+- This passes straight through to the guest on VMware Workstation, which is where it was
+  tested. If your host or hypervisor swallows it instead, look for a "send key" or hot-key
+  setting to forward the combination.
+- To release the mouse back to the host afterwards: `Ctrl+Alt`.
+
+This one key sequence is the difference between "the VM is bricked" and "the VM has a broken
+compositor and a perfectly good shell". Get to that shell, turn on SSH, and stop using the
+console.
+
 Keep the typing minimal, because you are doing it on the bad console. This uses **password
 authentication**, which is the least fuss on a throwaway VM:
 
@@ -282,8 +307,9 @@ situation but was not run on a 3D-disabled VM here.
 You should already be on SSH from Step 0. If you are not, go back and do that first — the
 rest of this is genuinely unpleasant on the VMware console.
 
-If the desktop is broken and you never set SSH up, `Ctrl+Alt+F2` gets you a TTY to log in and
-run Step 0 from. A compositor failure takes the console with it; an SSH session survives it.
+If the desktop is broken and you never set SSH up, **`Ctrl+Alt+F3`** gets you a text console to
+log in and run Step 0 from — see 0.0 above. A compositor failure takes the graphical session
+with it; the other virtual terminals and an SSH session both survive it.
 
 ### 2.2. Identify which Hyprland you have
 

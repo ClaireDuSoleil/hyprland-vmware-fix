@@ -1,5 +1,7 @@
 # Hyprland on VMware — and getting Omarchy to run in a VM
 
+**Video demo: https://youtu.be/MFd4wF2Do7Q**
+
 Hyprland does not work in a VMware guest with 3D acceleration enabled. It either **aborts at
 startup**, or it starts to a **blank desktop with nothing on it but a mouse cursor**. The
 cursor moves, keybinds do nothing you can see, and no window ever appears. On Omarchy even the
@@ -26,6 +28,18 @@ If you got here by searching, these are the strings that lead to this repo:
 - no bar, no wallpaper, no windows — just a cursor that moves
 - Omarchy installs fine and then boots to nothing usable / Omarchy VMware black screen
 - "Omarchy in a VM doesn't work" — it does, with the patch here
+
+## Stuck on the blank desktop right now? Press `Ctrl+Alt+F3`
+
+The VM is not bricked. The graphical session is one virtual terminal among several and the
+rest are fine — `Ctrl+Alt+F3` drops you at a text login prompt where everything works. Log in
+with your install username and password, and you have a shell to fix the machine from. (Click
+inside the VM window first so the guest has keyboard focus; `Ctrl+Alt+F1` goes back to the
+broken graphical session, and `Ctrl+Alt` releases the mouse to the host.)
+
+The first thing to do from that shell is turn SSH on — Step 0 of the repair guide — because
+the console has no scrollback and no clipboard, and everything after this is much easier from
+a real terminal.
 
 ## Is this you?
 
